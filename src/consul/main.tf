@@ -50,7 +50,7 @@ module "consul_servers" {
   cluster_tag_value = var.cluster_name
 
   ami_id    = var.ami_id
-  user_data = "${data.template_file.user_data_server.rendered}"
+  user_data = data.template_file.user_data_server.rendered
 
   vpc_id     = data.aws_vpc.default.id
   subnet_ids = data.aws_subnet_ids.default.ids
@@ -77,7 +77,7 @@ module "consul_servers" {
 # ---------------------------------------------------------------------------------------------------------------------
 
 data "template_file" "user_data_server" {
-  template = file("${path.module}/examples/root-example/user-data-server.sh")
+  template = file(".terraform/modules/consul_servers/examples/root-example/user-data-server.sh")
 
   vars = {
     cluster_tag_key   = var.cluster_tag_key
@@ -106,7 +106,7 @@ module "consul_clients" {
   cluster_tag_value = var.cluster_name
 
   ami_id    = var.ami_id
-  user_data = "${data.template_file.user_data_client.rendered}"
+  user_data = data.template_file.user_data_client.rendered
 
   vpc_id     = data.aws_vpc.default.id
   subnet_ids = data.aws_subnet_ids.default.ids
@@ -125,7 +125,7 @@ module "consul_clients" {
 # ---------------------------------------------------------------------------------------------------------------------
 
 data "template_file" "user_data_client" {
-  template = file("${path.module}/examples/root-example/user-data-client.sh")
+  template = file(".terraform/modules/consul_clients/examples/root-example/user-data-client.sh")
 
   vars = {
     cluster_tag_key   = var.cluster_tag_key
@@ -141,7 +141,7 @@ data "template_file" "user_data_client" {
 
 data "aws_vpc" "default" {
   default = var.vpc_id == null ? true : false
-  id      = "${var.vpc_id}"
+  id      = var.vpc_id
 }
 
 data "aws_subnet_ids" "default" {
