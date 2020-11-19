@@ -1,0 +1,79 @@
+---
+- name: Wait until system is ready
+  hosts: all
+  gather_facts: no
+  become: yes
+  become_method: sudo
+  become_user: root
+  tasks:
+    - name: Wait for apt list lock (Known to cause issues sometimes)
+      raw: while fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do echo 'Waiting for apt list lock.' && sleep 10; done
+    - name: Ensure apt cache is up-to-date
+      apt:
+        update_cache: yes
+        upgrade: dist
+        autoclean: yes
+        autoremove: yes
+    # Thanks to https://stackoverflow.com/a/51903430
+    - name: populate /etc/environment
+      vars:
+        os_environment:
+          - key: NOMAD_ADDR
+            value: http://{{ nomad_bind_address }}:4646
+          - key: CONSUL_HTTP_ADDR
+            value: "{{ consul_bind_address }}:8500"
+      lineinfile:
+        dest: "/etc/environment"
+        state: present
+        regexp: "^{{ item.key }}="
+        line: "{{ item.key }}={{ item.value}}"
+      with_items: "{{ os_environment }}"
+
+- name: Provision Docker
+  hosts: docker_instances
+  become: yes
+  vars:
+    docker_package_state: latest
+    docker_users:
+      - vagrant
+  roles:
+    - geerlingguy.docker
+
+- name: Provision Docker pip package
+  hosts: docker_instances
+  become: yes
+  vars:
+    pip_package: python3-pip
+    pip_install_packages:
+      - name: docker
+        state: latest
+  roles:
+    - geerlingguy.pip
+
+- name: Provision Nomad
+  hosts: nomad_instances
+  become: yes
+  become_user: root
+  vars:
+    nomad_version: 0.12.8
+    nomad_iface: enp0s8
+    nomad_use_consul: yes
+  roles:
+    - role: ansible-community.nomad
+  tasks:
+    - name: Start nomad
+      service:
+        name: nomad
+        state: started
+        enabled: yes
+
+
+- name: Provision Consul
+  hosts: consul_instances
+  become: yes
+  become_user: root
+  vars:
+    consul_version: 1.8.5
+    consul_iface: enp0s8
+  roles:
+    - role: ansible-community.consul

@@ -1,0 +1,89 @@
+# Once off steps to take before vagrant up
+# - `ansible-galaxy install -r ansible/requirements.yml`
+# - `vagrant plugin install vagrant-hosts`
+# - python-netaddr required on host: `sudo dnf install python-netaddr` or `sudo apt install python-netaddr
+# - Add the following to /etc/hosts
+#     192.168.77.21 n1.lan n1
+#     192.168.77.22 n2.lan n2
+#     192.168.77.23 n3.lan n3
+
+num_workers = 3
+src_box = "ubuntu/focal64"
+Vagrant.configure("2") do |config|
+  (1..num_workers).each do |n|
+    config.vm.define "n#{n}" do |subconfig|
+      subconfig.vm.box = src_box
+      subconfig.vm.box_check_update = true
+      subconfig.vm.hostname = "n#{n}.lan"
+      subconfig.vm.network "private_network", ip: "192.168.77.#{20+n}"
+      subconfig.vm.synced_folder ".", "/home/vagrant/src"
+      subconfig.ssh.forward_agent = true
+      subconfig.vm.provider "virtualbox" do |vb|
+        vb.name = "n#{n}"
+        vb.gui = false
+        vb.cpus = 2
+        vb.memory = 4096
+        vb.customize ["modifyvm", :id, "--ioapic", "on"]
+        vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+        vb.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
+      end
+      subconfig.vm.provision :hosts do |provisioner|
+        (1..num_workers).each do |i|
+          provisioner.add_host "192.168.77.#{20+i}", ["n#{i}.lan", "n#{i}"]
+        end
+      end
+      if n == num_workers
+        subconfig.vm.provision :ansible do |ansible|
+          ansible.limit = "all"
+          ansible.playbook = "ansible/base.playbook.yml"
+          ansible.groups = {
+            "node1" => ["n1"],
+            "node2" => ["n2"],
+            "node3" => ["n3"],
+            "docker_instances" => ["n1", "n2", "n3"],
+            "nomad_instances" => ["n1", "n2", "n3"],
+            "consul_instances" => ["n1", "n2", "n3"],
+            "nomad_boths" => ["n1"],
+            "consul_bootstraps" => ["n1"],
+            "nomad_clients" => ["n2", "n3"],
+            "consul_clients" => ["n2", "n3"],
+            "node1:vars" => {
+              "nomad_advertise_address" => "192.168.77.21",
+              "nomad_bind_address" => "0.0.0.0",
+              "consul_bind_address" => "192.168.77.21",
+              "consul_client_address" => "192.168.77.21",
+              "nomad_consul_address" => "192.168.77.21:8500"
+            },
+            "node2:vars" => {
+              "nomad_advertise_address" => "192.168.77.22",
+              "nomad_bind_address" => "0.0.0.0",
+              "consul_bind_address" => "192.168.77.22",
+              "consul_client_address" => "192.168.77.22",
+              "nomad_consul_address" => "192.168.77.22:8500"
+            },
+            "node3:vars" => {
+              "nomad_advertise_address" => "192.168.77.23",
+              "nomad_bind_address" => "0.0.0.0",
+              "consul_bind_address" => "192.168.77.23",
+              "consul_client_address" => "192.168.77.23",
+              "nomad_consul_address" => "192.168.77.23:8500"
+            },
+            "nomad_boths:vars" => {
+              "nomad_node_role" => "both",
+              "nomad_bootstrap_expect" => 1
+            },
+            "nomad_clients:vars" => {
+              "nomad_node_role" => "client"
+            },
+            "consul_bootstraps:vars" => {
+              "consul_node_role" => "bootstrap"
+            },
+            "consul_clients:vars" => {
+              "consul_node_role" => "client"
+            }
+          }
+        end
+      end
+    end
+  end
+end

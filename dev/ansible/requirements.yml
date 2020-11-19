@@ -1,0 +1,20 @@
+---
+# To install: ansible-galaxy install -r requirements.yml
+roles:
+  - name: geerlingguy.docker
+    version: 2.9.0
+    source: https://galaxy.ansible.com
+
+  - name: geerlingguy.pip
+    version: 2.0.0
+    source: https://galaxy.ansible.com
+
+  - name: ansible-community.nomad
+    scm: git
+    src: git@github.com:ansible-community/ansible-nomad.git
+    version: 994b1d79d594641d660fe55d2f5fb4c775b78028
+
+  - name: ansible-community.consul
+    scm: git
+    src: git@github.com:ansible-community/ansible-consul.git
+    version: 595f43e43dbbe6dd365b3807027a1a811eefeb75
