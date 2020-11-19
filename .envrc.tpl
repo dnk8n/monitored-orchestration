@@ -7,3 +7,4 @@ export TF_VAR_cluster_name=mo-consul
 export TF_VAR_num_servers=3
 export TF_VAR_num_clients=3
 export TF_VAR_cluster_tag_key=mo-consul
+export TF_VAR_ssh_key_name=dev
